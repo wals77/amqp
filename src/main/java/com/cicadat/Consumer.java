@@ -32,10 +32,10 @@ public class Consumer {
             @Override
             public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                 System.out.println(new String(body));
-                channel.basicAck(envelope.getDeliveryTag(), false);
+                channel.basicAck(envelope.getDeliveryTag(), false); //这行代码如果注释的话，队列的消息将不会删除
             }
         });
-        TimeUnit.SECONDS.sleep(1);
+        TimeUnit.SECONDS.sleep(1);  //这行代码注释的话，由于消息还没删除就已经把连接关闭了，导致消息没有接收到，队列的消息也将不会删除
         channel.close();
         connection.close();
 
