@@ -10,27 +10,91 @@ import java.util.concurrent.TimeUnit;
  */
 public class Consumer {
 
-    public static final String LDQ_QUEUE = "ldq_queue";
-    public static final String LDQ_EXCHANGE = "ldq_exchange";
-    public static final String LDQ_ROUTTING = "ldq_routting";
-    public static final String LDQ_QUEUE_TWO = "ldq_queue_two";
 
     public static void main(String[] args) throws Exception {
-        //创建连接工厂
-        Channel channel1 = ConnectionUtils.createChannel();
-        //创建信道
-        final Channel channel = channel1;
-        String message = channel.basicConsume(LDQ_QUEUE_TWO, new DefaultConsumer(channel){
 
+        Connection connection = ConnectionUtils.createConnection();
+        final Channel channel = connection.createChannel();
+
+//        basicGetTest(channel);
+
+
+//        consumeTest(channel);
+
+//        rejectTest(channel);
+        manyConsumeTest();
+        TimeUnit.SECONDS.sleep(500000);
+        channel.close();
+        connection.close();
+
+    }
+
+    public static void manyConsumeTest() throws Exception{
+
+    }
+
+    public static void consumeTest(final Channel channel) throws Exception{
+
+
+        //服务端会把所有消息都推送给消费者
+        channel.basicConsume("myQueue", false, new DefaultConsumer(channel){
             @Override
-            public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                System.out.println(new String(body));
-                channel.basicAck(envelope.getDeliveryTag(), false); //这行代码如果注释的话，队列的消息将不会删除
+            public void handleDelivery(String consumerTag,
+                                       Envelope envelope,
+                                       AMQP.BasicProperties properties,
+                                       byte[] body) throws IOException {
+                System.out.println(consumerTag +"我接收到的消息："+new String(body));
+
+                long deliveryTag = envelope.getDeliveryTag();
+
+                //channel.basicAck(deliveryTag, false);   //ack确认，它会循环发送接收到消息的ack
+
             }
         });
-        TimeUnit.SECONDS.sleep(1);  //这行代码注释的话，由于消息还没删除就已经把连接关闭了，导致消息没有接收到，队列的消息也将不会删除
+    }
 
-        ConnectionUtils.release();
+    //客户端主动从服务器拿消息
+    public static void basicGetTest(Channel channel) throws Exception{
+        GetResponse response = channel.basicGet("myQueue", false);  //客户端主动的从服务器拿消息,如果自动确认为false，客户端拿到消息后服务端不会删除该消息
+        byte[] body = response.getBody();
+        Envelope envelope = response.getEnvelope();
+        System.out.println("接收到的消息："+ new String(body));
+
+        channel.basicAck(envelope.getDeliveryTag(), false); //ack确认
+
+    }
+
+    /**
+     * 拒绝消息
+     * @param channel
+     * @throws IOException
+     */
+    public static void rejectTest(final Channel channel) throws IOException {
+
+        /*GetResponse response = channel.basicGet("myQueue", false);
+        Envelope envelope = response.getEnvelope();*/
+        /*channel.basicReject(envelope.getDeliveryTag(),true);
+        System.out.println("被拒绝的消息是:"+new String(response.getBody()));*/
+
+        channel.basicConsume("myQueue", false, new DefaultConsumer(channel){
+            @Override
+            public void handleDelivery(String consumerTag,
+                                       Envelope envelope,
+                                       AMQP.BasicProperties properties,
+                                       byte[] body) throws IOException {
+                System.out.println(consumerTag +"我接收到的消息："+new String(body));
+
+                long deliveryTag = envelope.getDeliveryTag();
+
+                //requeue(重新入队，当为true时，它会重新推送给消费者)
+                channel.basicNack(deliveryTag,true,false);   //两个都为true 会死循环
+
+
+            }
+        });
+
+
+//        channel.basicNack(envelope.getDeliveryTag(), true, false);
 
     }
 }

@@ -26,6 +26,16 @@ public class ConnectionUtils {
     }
 
 
+    //创建连接，测试多个连接
+    public static Connection createConnection() throws IOException, TimeoutException {
+        ConnectionFactory connectionFactory = new ConnectionFactory();
+        connectionFactory.setHost("192.168.65.128");
+        connectionFactory.setUsername("rabbitstudy");
+        connectionFactory.setPassword("123456");
+        return connectionFactory.newConnection();
+    }
+
+
     public static void release(){
         if (channel != null){
             try {
