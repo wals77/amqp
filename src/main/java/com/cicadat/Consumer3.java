@@ -3,12 +3,11 @@ package com.cicadat;
 import com.rabbitmq.client.*;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
- * 消费者
+ * 第三个消费者
  */
-public class Consumer {
+public class Consumer3 {
 
 
     public static void main(String[] args) throws Exception {
@@ -41,7 +40,7 @@ public class Consumer {
                                        byte[] body) throws IOException {
                 System.out.println(consumerTag +"我接收到的消息："+new String(body));
 
-                long deliveryTag = envelope.getDeliveryTag();
+//                long deliveryTag = envelope.getDeliveryTag();
 
                 //channel.basicAck(deliveryTag, false);   //ack确认，它会循环发送接收到消息的ack
 

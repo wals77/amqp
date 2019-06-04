@@ -23,14 +23,19 @@ public class Test {
 
 //        PublishTest.pulishForMandatory(channel);
 
-        PublishTest.publish(channel);
+//        PublishTest.publish(channel);
+
+//        PublishTest.publishForTX(channel    );
+//        PublishTest.publishForTXperformance(channel);
+        PublishTest.publishForConfirm(channel);
+
         /*connection.addShutdownListener(new ShutdownListener() {
             public void shutdownCompleted(ShutdownSignalException cause) {
                 System.out.println("cause"+cause);
             }
         });*/   //添加connection关闭监听器
 
-        TimeUnit.SECONDS.sleep(1);
+        TimeUnit.SECONDS.sleep(5);
         channel.close();
         connection.close();
     }
@@ -230,6 +235,7 @@ public class Test {
             });
         }
 
+        //发送消息
         public static void publish(Channel channel) throws Exception{
             channel.exchangeDeclare("myExchange", BuiltinExchangeType.DIRECT);
 
@@ -244,6 +250,80 @@ public class Test {
                 channel.basicPublish("myExchange","routingKey", false, null, ("hello test"+i).getBytes());
             }
         }
+
+        //发送消息事务机制(性能较低)
+        public static void publishForTX(Channel channel) throws Exception{
+            channel.exchangeDeclare("myExchange", BuiltinExchangeType.DIRECT);
+
+            channel.queueDeclare("myQueue", false, false, false, null);
+
+            channel.queueBind("myQueue","myExchange","routingKey");
+
+            channel.txSelect();
+            channel.basicPublish("myExchange","routingKey", null, "hello tx".getBytes());
+            //int i = 1/0;  //中间出现异常，消息会发送失败
+            channel.txCommit();
+            //channel.txRollback();
+        }
+
+        //事务的性能测试
+        public static void publishForTXperformance(Channel channel) throws Exception{
+            channel.exchangeDeclare("myExchange", BuiltinExchangeType.DIRECT);
+
+            channel.queueDeclare("myQueue", false, false, false, null);
+
+            channel.queueBind("myQueue","myExchange","routingKey");
+
+            long start = System.currentTimeMillis();
+//            channel.txSelect();
+            for (int i = 0; i < 10000; i++){
+//                channel.txSelect();
+                channel.basicPublish("myExchange","routingKey", null, "hello tx".getBytes());
+//                channel.txCommit();
+            }
+            //int i = 1/0;  //中间出现异常，消息会发送失败，因为还没提交
+//            channel.txCommit();
+            //channel.txRollback();
+            System.out.println("总共时间："+(System.currentTimeMillis() - start));   //非事务 时间=630， 事务 时间=10946
+        }
+
+        //发送消息确认机制
+        public static void publishForConfirm(Channel channel) throws Exception{
+            channel.exchangeDeclare("myExchange", BuiltinExchangeType.DIRECT);
+
+            channel.queueDeclare("myQueue", false, false, false, null);
+
+            channel.queueBind("myQueue","myExchange","routingKey");
+
+
+            try {
+                channel.confirmSelect();
+                for (int i = 0; i < 10; i++){
+                    channel.basicPublish("myExchange","routingKey", null, "hello tx".getBytes());   //发送完后，服务端里面会发一个Basic.Ack消息给客户端
+                }
+//                int i = 1/0;    //报异常消息也会发送成功; 这里只是确认消息发送到服务器是否成功，即使客户端这个时候出现了异常，跟服务器没关系，返回结果还是成功
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            /*boolean result = channel.waitForConfirms(); //这里确认客户端发送到服务端的消息是否成功
+            if (result){
+                System.out.println("消息发送成功");
+            }*/
+            //channel.waitForConfirmsOrDie();
+
+            channel.addConfirmListener(new ConfirmListener() {
+                public void handleAck(long deliveryTag, boolean multiple) throws IOException {
+                    System.out.println("我已经确认"+deliveryTag + ""+ multiple);
+                }
+
+                public void handleNack(long deliveryTag, boolean multiple) throws IOException {
+
+                    System.out.println("未确认消息"+deliveryTag+multiple);
+                }
+            });
+
+        }
+
     }
 
 }
