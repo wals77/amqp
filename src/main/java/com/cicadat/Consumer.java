@@ -33,6 +33,7 @@ public class Consumer {
 
 
         //服务端会把所有消息都推送给消费者
+        channel.basicQos(10);   //qos(未确认的消息的数量)是针对消费者推送模式的，当队列的消息过多，防止队列一下把所有消息都推给消费者，可以设置这个值
         channel.basicConsume("myQueue", false, new DefaultConsumer(channel){
             @Override
             public void handleDelivery(String consumerTag,
@@ -42,9 +43,7 @@ public class Consumer {
                 System.out.println(consumerTag +"我接收到的消息："+new String(body));
 
                 long deliveryTag = envelope.getDeliveryTag();
-
-                //channel.basicAck(deliveryTag, false);   //ack确认，它会循环发送接收到消息的ack
-
+                channel.basicAck(deliveryTag, false);   //ack确认，它会循环发送接收到消息的ack
             }
         });
     }

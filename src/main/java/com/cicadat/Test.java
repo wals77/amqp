@@ -3,6 +3,7 @@ package com.cicadat;
 import com.rabbitmq.client.*;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -27,7 +28,9 @@ public class Test {
 
 //        PublishTest.publishForTX(channel    );
 //        PublishTest.publishForTXperformance(channel);
-        PublishTest.publishForConfirm(channel);
+//        PublishTest.publishForConfirm(channel);
+
+        QueueTest.QueueArgs(channel);
 
         /*connection.addShutdownListener(new ShutdownListener() {
             public void shutdownCompleted(ShutdownSignalException cause) {
@@ -35,7 +38,7 @@ public class Test {
             }
         });*/   //添加connection关闭监听器
 
-        TimeUnit.SECONDS.sleep(5);
+        TimeUnit.SECONDS.sleep(10);
         channel.close();
         connection.close();
     }
@@ -321,6 +324,31 @@ public class Test {
                     System.out.println("未确认消息"+deliveryTag+multiple);
                 }
             });
+
+        }
+
+    }
+
+    static class QueueTest {
+
+        public static void QueueArgs(Channel channel) throws Exception {
+
+            channel.exchangeDeclare("myExchange",BuiltinExchangeType.DIRECT);
+
+            HashMap<String, Object> arguments = new HashMap<String, Object>();
+            arguments.put("x-dead-letter-exchange","dead-exchange");
+            //arguments.put("x-max-length",5);
+            channel.queueDeclare("myQueue",false,false, false, arguments);
+
+            channel.queueBind("myQueue","myExchange","routingkey");
+
+            channel.exchangeDeclare("dead-exchange",BuiltinExchangeType.DIRECT);
+            channel.queueDeclare("dead-queue",false,false, false, null);
+            channel.basicQos(10);
+            channel.queueBind("dead-queue","dead-exchange","routingkey");
+            for (int i = 0; i<50; i++){
+                channel.basicPublish("myExchange","routingkey", new AMQP.BasicProperties().builder().deliveryMode(2).build(), ("hello "+i).getBytes());
+            }
 
         }
 
